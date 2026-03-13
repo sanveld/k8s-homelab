@@ -1,6 +1,6 @@
 # k8s-homelab
 
-Production-grade Kubernetes homelab running on bare metal, managed with GitOps principles.
+Production-grade Kubernetes homelab running on Proxmox, managed with GitOps principles.
 
 ## Architecture
 
@@ -10,8 +10,7 @@ k8s-homelab/
 │   ├── core/              # Core platform services (ingress, cert-manager, monitoring)
 │   ├── apps/              # Application workloads
 │   └── infrastructure/    # GitOps engine, namespaces, RBAC
-├── terraform/             # Infrastructure provisioning
-├── ansible/               # Node configuration & K8s bootstrap
+├── ansible/               # Node configuration & cluster maintenance
 ├── docs/                  # Architecture decisions & runbooks
 └── .github/workflows/     # CI: linting, validation, security scanning
 ```
@@ -20,13 +19,14 @@ k8s-homelab/
 
 | Layer | Tool | Status |
 |-------|------|--------|
-| OS / Nodes | Ubuntu Server | TODO |
-| Provisioning | Terraform | TODO |
+| Hypervisor | Proxmox VE | Running |
+| OS / Nodes | Ubuntu Server | Running |
 | Configuration | Ansible | TODO |
-| Distribution | k3s | TODO |
+| Distribution | kubeadm | Running |
+| CNI | Calico | Running |
 | GitOps | ArgoCD | TODO |
 | Helm | Custom + upstream charts | TODO |
-| Ingress | Traefik | TODO |
+| Ingress | Nginx Ingress / Traefik | TODO |
 | TLS | cert-manager + Let's Encrypt | TODO |
 | DNS | ExternalDNS | TODO |
 | Secrets | Sealed Secrets | TODO |
@@ -34,23 +34,31 @@ k8s-homelab/
 | Logging | Loki + Promtail | TODO |
 | Storage | Longhorn | TODO |
 | Backup | Velero | TODO |
-| Network Policies | Cilium / Calico | TODO |
+| Network Policies | Calico | TODO |
+
+## Cluster
+
+- **Control plane:** 1 node (`k8s-control`)
+- **Workers:** 1 node (`k8s-worker1`)
+- **Network:** 10.27.27.0/24
+- **Kubeadm-managed** with Calico CNI
 
 ## Roadmap
 
-### Phase 1: Foundation
-- [ ] Provision nodes with Terraform
-- [ ] Configure nodes with Ansible (SSH hardening, packages, firewall)
-- [ ] Bootstrap k3s cluster (1 server + 2 agents)
-- [ ] Set up kubectl access and kubeconfig management
+### Phase 1: Ansible
+- [ ] Inventory for Proxmox host and K8s nodes
+- [ ] Playbook: OS hardening (SSH, firewall, unattended upgrades)
+- [ ] Playbook: kubeadm node prerequisites (container runtime, kubelet, kubeadm)
+- [ ] Playbook: cluster join/reset helpers
+- [ ] Playbook: kubeconfig fetch
 
 ### Phase 2: Core Platform
 - [ ] Deploy ArgoCD and configure app-of-apps pattern
-- [ ] Set up Traefik ingress controller
+- [ ] Set up ingress controller (Nginx Ingress or Traefik)
 - [ ] Configure cert-manager with Let's Encrypt (staging first, then prod)
 - [ ] Deploy ExternalDNS for automatic DNS record management
 - [ ] Set up Sealed Secrets for secret management
-- [ ] Define network policies and namespace isolation
+- [ ] Define network policies and namespace isolation with Calico
 
 ### Phase 3: Observability
 - [ ] Deploy kube-prometheus-stack (Prometheus + Grafana)
@@ -66,7 +74,7 @@ k8s-homelab/
 
 ### Phase 5: Applications
 - [ ] Deploy a sample app with Helm (custom chart)
-- [ ] Set up a self-hosted service (e.g., Gitea, Vaultwarden, or similar)
+- [ ] Migrate Gitea from raw manifests to Helm chart
 - [ ] Implement HPA (Horizontal Pod Autoscaler) on a workload
 - [ ] Add health checks, resource requests/limits, PDBs
 
@@ -78,11 +86,16 @@ k8s-homelab/
 
 ## Hardware
 
-> TODO: Document your homelab hardware setup here.
+Single Proxmox VE server (Debian 12):
+- **Storage:** 2x SSDs (VMs/CTs) + 1x 3.6TB HDD (ZFS, data/backups)
+- **RAM:** ~7.5 GB shared across all workloads — resource efficiency matters
 
 ## Getting Started
 
-> TODO: Add bootstrap instructions once Phase 1 is complete.
+```bash
+export KUBECONFIG=~/.kube/config-homelab
+kubectl get nodes
+```
 
 ## License
 
