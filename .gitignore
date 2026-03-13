@@ -1,0 +1,27 @@
+# Secrets and credentials
+*.key
+*.pem
+*.crt
+kubeconfig
+.env
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ansible
+*.retry
+
+# Helm
+charts/*/charts/
+charts/*/tmpcharts/
