@@ -1,0 +1,70 @@
+---
+# Rolling OS upgrade for Kubernetes nodes.
+# Drains each node, upgrades packages, reboots if needed, then uncordons.
+# Control plane nodes are upgraded first, then workers.
+# kubectl commands run locally using ~/.kube/config-homelab.
+#
+# Usage:
+#   ansible-playbook playbooks/os-upgrade.yml
+#   ansible-playbook playbooks/os-upgrade.yml --limit workers
+
+- name: Rolling OS upgrade
+  hosts: control_plane:workers
+  serial: 1
+  tasks:
+    - name: Drain node
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >
+          kubectl drain {{ inventory_hostname }}
+          --ignore-daemonsets
+          --delete-emptydir-data
+          --force
+          --timeout=120s
+      changed_when: true
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+      register: apt_upgrade
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Reboot node
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "Reboot triggered by Ansible OS upgrade"
+      when: reboot_required.stat.exists
+
+    - name: Wait for node to be Ready
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >
+          kubectl wait node/{{ inventory_hostname }}
+          --for=condition=Ready
+          --timeout=120s
+      changed_when: false
+      retries: 5
+      delay: 10
+      register: node_ready
+      until: node_ready.rc == 0
+
+    - name: Uncordon node
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        cmd: >
+          kubectl uncordon {{ inventory_hostname }}
+      changed_when: true
